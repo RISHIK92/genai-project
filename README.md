@@ -1,12 +1,12 @@
-# Exam Difficulty Predictor
+# Exam Question Difficulty Predictor
 
 ### Intelligent Question Complexity Analysis via Feature Engineering & XGBoost
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-Supported-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
-[![XGBoost](https://img.shields.io/badge/XGBoost-1.7%2B-0F9D58?style=flat-square&logo=xgboost&logoColor=white)](https://xgboost.readthedocs.io/)
+[![XGBoost](https://img.shields.io/badge/XGBoost-2.0%2B-0F9D58?style=flat-square&logo=xgboost&logoColor=white)](https://xgboost.readthedocs.io/)
 
-[Overview](#-overview) · [Architecture](#-system-architecture) · [Quickstart](#-quickstart) · [Pipeline](#-ml-pipeline) · [Results](#-results) · [Application](#-application)
+[Overview](#-overview) · [Architecture](#-system-architecture) · [Quickstart](#-quickstart) · [Models](#-models) · [Results](#-results) · [Application](#-application)
 
 ---
 
@@ -14,16 +14,16 @@
 
 Educators, instructional designers, and testing organizations spend countless manual hours evaluating the difficulty and quality of examination questions. A misjudged question can skew test results and inaccurately measure student proficiency.
 
-The Exam Difficulty Predictor acts as an automated "first pass" quality assurance tool. It is an **end-to-end, production-structured ML pipeline** taking raw question text (including LaTeX and math symbols) and instantly predicting how difficult it will be for students.
+The **Exam Question Difficulty Predictor** acts as an automated "first pass" quality assurance tool. It is an end-to-end, production-structured ML pipeline that takes raw question text (including LaTeX and math symbols) and instantly predicts how difficult it will be for students.
 
-It predicts both a continuous difficulty index (p-value from 0.0 to 1.0) and a categorical difficulty tier (Easy, Medium, Hard). The underlying models are built with **XGBoost** and rely on 25 extracted lexical, mathematical, and domain-specific features.
+It predicts both a **continuous difficulty index** (p-value from 0.0 to 1.0) and a **categorical difficulty tier** (Easy, Medium, Hard). Two XGBoost model variants are deployed — one for **pre-exam** analysis (text-only) and one for **post-exam** analysis (all features).
 
 ### Problem Statement
 
 | Challenge                      | Scale                         |
 | ------------------------------ | ----------------------------- |
 | Manual verification bottleneck | Hours spent per exam          |
-| Dataset size (Exam Dataset)    | 50,000 preprocessed questions |
+| Dataset size                   | 50,000 preprocessed questions |
 | Evaluation targets             | Continuous (P-value) & Tiers  |
 | Structural complexity          | Text, LaTeX, Math Operators   |
 
@@ -35,8 +35,8 @@ The project functions across three main sectors: data processing, model building
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────────────┐
-│                         EXAM DIFFICULTY PREDICTOR SYSTEM                                 │
-│                         Intelligent Question Complexity Analysis                         │
+│                     EXAM QUESTION DIFFICULTY PREDICTOR SYSTEM                             │
+│                     Intelligent Question Complexity Analysis                              │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
 
 
@@ -50,7 +50,7 @@ The project functions across three main sectors: data processing, model building
 
         ┌────────────────────┐
         │   Data Loading     │
-        │ clean_dataset.py   │
+        │ clean_dataset.ipynb│
         └─────────┬──────────┘
                   ▼
         ┌──────────────────────────────────────────┐
@@ -63,23 +63,22 @@ The project functions across three main sectors: data processing, model building
         │ • Outlier capping (IQR method)           │
         └─────────┬────────────────────────────────┘
                   ▼
-        ┌────────────────────┐
-        │ Export Clean Data  │
-        │ exam_50k_clean.csv │
-        └─────────┬──────────┘
-                  ▼
-        ┌──────────────────────────────────────────┐
-        │          Machine Learning Models         │
-        │           genai_project.ipynb            │
-        │------------------------------------------│
-        │ • XGBoost Regressor (Continuous P-Value) │
-        │ • XGBoost Classifier (Easy/Med/Hard)     │
-        └─────────┬────────────────────────────────┘
-                  ▼
-        ┌────────────────────┐
-        │ Model Persistence  │
-        │ Save JSON & PKL    │
-        └────────────────────┘
+        ┌────────────────────────────────────────────────────┐
+        │              Machine Learning Models               │
+        │----------------------------------------------------│
+        │  Pre-Exam (Text-Only)  │  Post-Exam (All Features) │
+        │  xgboost_pre_exam/     │  xgboost_post_exam/       │
+        │  25 features           │  30 features              │
+        └─────────┬──────────────┴───────────┬───────────────┘
+                  ▼                          ▼
+        ┌────────────────────────────────────────┐
+        │         Model Persistence              │
+        │  xgb_reg_model_A.json  (pre-exam)      │
+        │  xgb_clf_model_A.json  (pre-exam)      │
+        │  xgb_all_reg_model_B.json (post-exam)  │
+        │  xgb_all_clf_model_B.json (post-exam)  │
+        │  xgb_text_model.pkl / xgb_all_model.pkl│
+        └────────────────────────────────────────┘
 
 ╚══════════════════════════════════════════════════════════════════════════════════════════════╝
 
@@ -87,18 +86,18 @@ The project functions across three main sectors: data processing, model building
 
 ╔══════════════════════════════════════ INFERENCE PIPELINE ═════════════════════════════════════╗
 
-        User Input (Streamlit UI via app.py)
-        (Question Text + Answer Options + Tier)
+        User Input (Streamlit UI via streamlit/app.py)
+        (Question Text + Answer Options + Tier + Post-Admin Stats)
                     │
                     ▼
         ┌────────────────────┐
         │ Load Saved Models  │
-        │ xgb_models.json    │
+        │ files/*.json       │
         └─────────┬──────────┘
                   ▼
         ┌──────────────────────────────────────────┐
         │        Feature Engineering (NLP)         │
-        │          feature_extractor.py            │
+        │     streamlit/feature_extractor.py       │
         │------------------------------------------│
         │ • Lexical Stats (Word & Sentence counts) │
         │ • Math Ops & LaTeX Density               │
@@ -127,32 +126,43 @@ The project functions across three main sectors: data processing, model building
 
 ---
 
-## � Repository Structure
+## 📂 Repository Structure
 
 ```
 genai-project/
 ├── README.md                         # ← You are here
 ├── requirements.txt                  # Python dependencies
 │
-├── app.py                            # Streamlit web application frontend
-├── feature_extractor.py              # Extractor for 25 lexical and structural features
-├── clean_dataset.py                  # Script to preprocess and sanitize raw data
-├── clean_dataset.ipynb               # Jupyter Notebook version of the data cleaner
-├── genai_project.ipynb               # XGBoost model training and evaluation notebook
+├── streamlit/                        # Streamlit web application
+│   ├── app.py                        # Main application (3 pages)
+│   └── feature_extractor.py          # 25-feature extraction module
+│
+├── files/                            # Serialised model artefacts
+│   ├── xgb_reg_model_A.json          # XGBoost Regressor (text-only, pre-exam)
+│   ├── xgb_clf_model_A.json          # XGBoost Classifier (text-only, pre-exam)
+│   ├── xgb_text_model.pkl            # LabelEncoder for pre-exam models
+│   ├── xgb_all_reg_model_B.json      # XGBoost Regressor (all features, post-exam)
+│   ├── xgb_all_clf_model_B.json      # XGBoost Classifier (all features, post-exam)
+│   └── xgb_all_model.pkl             # LabelEncoder for post-exam models
 │
 ├── notebooks/
-│   ├── question_analysis.ipynb       # NLP analysis notebook on questions
-│   └── visualize_results.ipynb       # Notebook dedicated to plotting analysis results
+│   ├── clean_dataset.ipynb           # Data preprocessing notebook
+│   ├── visualize_results.ipynb       # Visualisation notebook
+│   ├── compare/
+│   │   └── compare.ipynb             # Side-by-side model comparison
+│   ├── xgboost_pre_exam/
+│   │   └── xgboost_pre_exam.ipynb    # Pre-exam (text-only) model training
+│   └── xgboost_post_exam/
+│       └── xgboost_post_exam.ipynb   # Post-exam (all features) model training
+│
+├── report/
+│   ├── report.tex                    # Full LaTeX technical report
+│   └── report.pdf                    # Compiled PDF report
 │
 ├── raw_dataset/
-│   └── exam_dataset_50k_unclean.csv  # Original provided uncleaned data
-├── dataset/
-│   └── exam_dataset_50k_cleaned.csv  # Cleaned dataset output by the pipeline
-│
-└── files/                            # Model persistence
-    ├── xgb_reg_model_A.json          # Saved XGBoost Regression Model
-    ├── xgb_clf_model_A.json          # Saved XGBoost Classification Model
-    └── pipeline.pkl                  # Label Encoder / Pipeline
+│   └── exam_dataset_50k_unclean.csv  # Original uncleaned data
+└── cleaned_dataset/
+    └── exam_dataset_50k_cleaned.csv  # Cleaned dataset
 ```
 
 ---
@@ -174,84 +184,94 @@ source venv/bin/activate          # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 3. Add the dataset (Optional)
-
-Place the dataset inside `raw_dataset/` and run the cleaning script using `clean_dataset.py` or `clean_dataset.ipynb`.
-
-### 4. Train the model (Optional)
+### 3. Launch the app
 
 ```bash
-jupyter notebook genai_project.ipynb
-# Run all cells — models save to files/
-```
-
-### 5. Launch the app
-
-```bash
-streamlit run app.py
+streamlit run streamlit/app.py
 # Opens at http://localhost:8501
 ```
 
+### 4. Train models (optional)
+
+Open the notebooks in `notebooks/xgboost_pre_exam/` or `notebooks/xgboost_post_exam/` and run all cells. Trained models will be saved to `files/`.
+
 ---
 
-## 🔬 ML Pipeline
+## 🧠 Models
 
-### Stage 1 — Feature Extraction
+Two XGBoost model variants are deployed, each targeting a different stage of the exam lifecycle:
 
-The user inputs text, and `feature_extractor.py` scans for mathematical operators, word structures, and domain terms (Geometry, Calculus, Statistics) extracting 25 quantitative features.
+### Pre-Exam Model (Text-Only)
 
-### Stage 2 — Domain Heuristics
+- **Use case:** Predict difficulty **before** the exam is administered
+- **Features:** 25 text-derived features (lexical, LaTeX, domain terms, answer complexity)
+- **Model files:** `xgb_reg_model_A.json`, `xgb_clf_model_A.json`, `xgb_text_model.pkl`
 
-Applies weighted nudges based on user-provided academic tiers.
+### Post-Exam Model (All Features)
 
-### Stage 3 — Machine Learning Models
-
-| Model                  | Task                                                  |
-| ---------------------- | ----------------------------------------------------- |
-| **XGBoost Regressor**  | Continuous difficulty index prediction (p-value).     |
-| **XGBoost Classifier** | Categorical tier classification (Easy, Medium, Hard). |
+- **Use case:** Predict difficulty **after** a pilot administration
+- **Features:** 30 features (25 text + 5 post-admin: response time, discrimination index, IRT params)
+- **Model files:** `xgb_all_reg_model_B.json`, `xgb_all_clf_model_B.json`, `xgb_all_model.pkl`
 
 ---
 
 ## 📊 Results
 
-The system utilizes **XGBoost (Extreme Gradient Boosting)**, trained on a dataset of ~50,000 rows.
+| Metric            | Pre-Exam (Text-Only) | Post-Exam (All Features) |
+| ----------------- | -------------------- | ------------------------ |
+| **MAE**           | 0.0772               | **0.0162**               |
+| **RMSE**          | 0.0983               | **0.0227**               |
+| **R² Score**      | 0.5693               | **0.9761**               |
+| **Accuracy**      | 83.34%               | **95.34%**               |
+| **F1 (weighted)** | 0.80                 | **0.95**                 |
 
-| Metric          | Regression                                     | Classification                                              |
-| --------------- | ---------------------------------------------- | ----------------------------------------------------------- |
-| **Performance** | RMSE: ~0.1245 <br> MAE: ~0.0982 <br> R²: ~0.78 | Accuracy: ~84.5% <br> Precision: ~0.85 <br> F1-Score: ~0.83 |
+> **Note:** The post-exam model dramatically outperforms the pre-exam model because post-administration features (response time, discrimination index) are strong proxies for difficulty. However, these features are only available after students have taken the exam.
 
 ---
 
 ## 🕹️ Application
 
-### Usage via Streamlit
+The Streamlit app (`streamlit/app.py`) provides **three pages**:
 
-The main interface runs locally via Streamlit. You can:
+### 1. Post-Exam Analysis
 
-1. Copy-paste a question and its multiple-choice options.
-2. Specify the subject tier (1–5) and misconception levels.
-3. Automatically receive evaluated classification probabilities, text complexity data, and a regression difficulty score.
+Enter question text, answer options, metadata, **and** post-administration statistics (response time, discrimination index, IRT parameters) to get the highest-accuracy predictions.
+
+### 2. Pre-Exam Analysis
+
+Enter only question text, answer options, and metadata. No post-admin data required — ideal for evaluating questions **before** they go live.
+
+### 3. About the Model
+
+Side-by-side comparison cards for both models, feature pipeline documentation, training details, and known limitations.
 
 ---
 
 ## 🚦 Limitations
 
-- **Language Support:** Currently, the system evaluates questions primarily in English due to the NLP dependency libraries (like `textstat` and NLTK). Multi-language evaluation would require a different vectorization pipeline.
-- **Image/Graph Dependency:** The model cannot parse or comprehend questions that rely primarily on images, charts, or graphical data contexts.
-- **Lexical Bias:** The heuristic approach assumes that longer, more complex sentences with more math operators dictate mathematical/academic difficulty. This can occasionally misclassify a very conceptually difficult short question as "Easy".
+- **Language:** Optimised for English-language mathematics questions only.
+- **No Visual Understanding:** Cannot interpret images, diagrams, or graphs.
+- **Class Imbalance:** The dataset is ~80% Easy questions, leading to low recall for Hard questions in the pre-exam model.
+- **Synthetic Data:** Training data includes synthetic augmentations; unusual real-world formatting may reduce confidence.
+
+---
+
+## 📄 Report
+
+A comprehensive LaTeX technical report is available in `report/`:
+
+- **Source:** `report/report.tex`
+- **Compiled:** `report/report.pdf` (16 pages)
+
+Covers: introduction, dataset, feature engineering, model architecture, training, results comparison, system architecture, application interface, heuristic adjustment, limitations, and future work.
 
 ---
 
 ## 🚀 Future Work — Milestone 2 (Agentic AI)
 
-Moving beyond static ML models, Milestone 2 will introduce an iterative, agentic approach evaluating the _conceptual rigor_ of questions.
-
-Unlike the current lexical approach, the future Agentic framework will utilize:
-
-- **LLM Reasoning Engines:** Leveraging Large Language Models (like Gemini/GPT) to solve the question step-by-step and measure the logical complexity required instead of just lexical bounds.
-- **RAG for Context Base:** Using Retrieval-Augmented Generation to measure how a question aligns against educational standards (e.g., Curriculum).
-- **Multi-Modal Processing:** Introducing Vision-Language Models to handle questions heavily reliant on graphs, geometry diagrams, and image-based data.
-- **Iterative Feedback Loops:** An agentic workflow where the model acts as a "tutor," testing various difficulty assumptions and adjusting its final difficulty rating based on simulated student failure modes.
+- **LLM Reasoning:** Leverage Gemini/GPT to solve questions step-by-step and measure conceptual complexity.
+- **RAG for Curriculum Alignment:** Retrieval-Augmented Generation against educational standards.
+- **Multi-Modal Processing:** Vision-Language Models for diagram-dependent questions.
+- **Iterative Feedback Loops:** Agentic workflows simulating student failure modes.
 
 ---
