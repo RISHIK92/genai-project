@@ -184,7 +184,7 @@ page = st.sidebar.radio("Navigation", ["Post-Exam Analysis", "Pre-Exam Analysis"
 if page == "Post-Exam Analysis":
     # --- Post-Exam Analysis (All Features) ---
     st.title("Post-Exam Difficulty Analysis")
-    st.markdown("Uses **all features** including post-administration stats for highest accuracy predictions.")
+    st.markdown("Uses **all features** including post-administration stats and student response analytics for comprehensive question analysis.")
     st.markdown("---")
 
     # Input Section
@@ -214,9 +214,26 @@ if page == "Post-Exam Analysis":
         discrimination_index = st.number_input("Discrimination Index", min_value=-1.0, max_value=1.0, value=0.3, step=0.05, help="How well the question discriminates between strong and weak students")
         point_biserial_corr = st.number_input("Point-Biserial Correlation", min_value=-1.0, max_value=1.0, value=0.3, step=0.05, help="Correlation between item score and total score")
         irt_a_param = st.number_input("IRT a-Parameter", min_value=0.0, value=1.0, step=0.1, help="Item discrimination (IRT)")
+        irt_b_param = st.number_input("IRT b-Parameter", min_value=-4.0, max_value=4.0, value=0.0, step=0.1, help="Item difficulty on theta scale")
 
-        st.markdown("### Analysis")
-        predict_btn = st.button("Run Prediction", use_container_width=True)
+    # --- Student Response Section ---
+    st.markdown("---")
+    st.markdown("### Student Response Data")
+    st.markdown("Enter response distribution and performance data for item analysis.")
+
+    resp1, resp2, resp3 = st.columns(3)
+    with resp1:
+        correct_answer = st.selectbox("Correct Answer", ["A", "B", "C", "D"], index=0, key="post_correct")
+        n_students = st.number_input("Students Attempted", min_value=1, value=100, step=1, key="post_n")
+    with resp2:
+        pct_a = st.number_input("% Chose A", min_value=0.0, max_value=100.0, value=40.0, step=1.0, key="post_pct_a")
+        pct_b = st.number_input("% Chose B", min_value=0.0, max_value=100.0, value=25.0, step=1.0, key="post_pct_b")
+    with resp3:
+        pct_c = st.number_input("% Chose C", min_value=0.0, max_value=100.0, value=20.0, step=1.0, key="post_pct_c")
+        pct_d = st.number_input("% Chose D", min_value=0.0, max_value=100.0, value=15.0, step=1.0, key="post_pct_d")
+
+    st.markdown("### Analysis")
+    predict_btn = st.button("Run Full Analysis", use_container_width=True)
 
     # Prediction Logic
     if predict_btn:
@@ -394,6 +411,122 @@ if page == "Post-Exam Analysis":
                 
                 st.markdown(table_html, unsafe_allow_html=True)
 
+        # =============================================
+        # STUDENT RESPONSE ANALYTICS (integrated)
+        # =============================================
+        st.markdown("---")
+        st.markdown("### Student Response Analytics")
+
+        pct_vals = [pct_a, pct_b, pct_c, pct_d]
+        correct_map = {"A": 0, "B": 1, "C": 2, "D": 3}
+        correct_idx = correct_map[correct_answer]
+        pct_correct_val = pct_vals[correct_idx]
+        n_correct = int(n_students * pct_correct_val / 100)
+        n_incorrect = n_students - n_correct
+
+        # Performance summary cards
+        p1, p2, p3, p4 = st.columns(4)
+        with p1:
+            st.markdown(f"""
+            <div class="metric-container">
+                <div class="metric-label">Students Attempted</div>
+                <div class="metric-value">{n_students}</div>
+                <div class="metric-sub">Total responses</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with p2:
+            diff_lbl = "Easy" if pct_correct_val >= 70 else ("Hard" if pct_correct_val < 40 else "Medium")
+            clr = "#22c55e" if pct_correct_val >= 70 else ("#ef4444" if pct_correct_val < 40 else "#f59e0b")
+            st.markdown(f"""
+            <div class="metric-container">
+                <div class="metric-label">Correct Rate</div>
+                <div class="metric-value" style="color:{clr}">{pct_correct_val:.1f}%</div>
+                <div class="metric-sub">{diff_lbl} ({n_correct} / {n_students})</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with p3:
+            st.markdown(f"""
+            <div class="metric-container">
+                <div class="metric-label">Correct</div>
+                <div class="metric-value" style="color:#22c55e">{n_correct}</div>
+                <div class="metric-sub">Got it right</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with p4:
+            st.markdown(f"""
+            <div class="metric-container">
+                <div class="metric-label">Incorrect</div>
+                <div class="metric-value" style="color:#ef4444">{n_incorrect}</div>
+                <div class="metric-sub">Got it wrong</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # Charts + Distractor analysis
+        chart_col, detail_col = st.columns([1, 1], gap="large")
+
+        with chart_col:
+            st.markdown("#### Response Distribution")
+            opt_labels = ["A", "B", "C", "D"]
+            bar_colors = ["#475569"] * 4
+            bar_colors[correct_idx] = "#22c55e"
+
+            fig_resp, ax_resp = plt.subplots(figsize=(5, 3.5))
+            fig_resp.patch.set_facecolor('#0f172a')
+            ax_resp.set_facecolor('#0f172a')
+            bars = ax_resp.bar(opt_labels, pct_vals, color=bar_colors, width=0.5, edgecolor='#1e293b', linewidth=1.5)
+            ax_resp.set_ylabel('% Students', color='#94a3b8', fontsize=10)
+            ax_resp.set_ylim(0, max(max(pct_vals) * 1.3, 10))
+            ax_resp.tick_params(axis='x', colors='#cbd5e1', labelsize=11)
+            ax_resp.tick_params(axis='y', colors='#64748b', labelsize=9)
+            ax_resp.spines['top'].set_visible(False)
+            ax_resp.spines['right'].set_visible(False)
+            ax_resp.spines['bottom'].set_color('#334155')
+            ax_resp.spines['left'].set_color('#334155')
+            for bar, pct, lbl in zip(bars, pct_vals, opt_labels):
+                suffix = " ✓" if lbl == correct_answer else ""
+                ax_resp.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
+                             f"{pct:.0f}%{suffix}", ha='center', va='bottom',
+                             color='#f8fafc', fontsize=10, fontweight='bold')
+            ax_resp.set_title(f"Correct Answer: {correct_answer}", color='#94a3b8', fontsize=9, pad=10)
+            plt.tight_layout()
+            st.pyplot(fig_resp)
+
+            # Pie chart
+            st.markdown("#### Correct vs Incorrect")
+            fig_pie, ax_pie = plt.subplots(figsize=(4, 3))
+            fig_pie.patch.set_facecolor('#0f172a')
+            ax_pie.set_facecolor('#0f172a')
+            wedges, texts, autotexts = ax_pie.pie(
+                [n_correct, n_incorrect], labels=['Correct', 'Incorrect'],
+                colors=['#22c55e', '#ef4444'], autopct='%1.0f%%', startangle=90,
+                textprops={'color': '#e2e8f0', 'fontsize': 10})
+            for at in autotexts:
+                at.set_fontweight('bold')
+            plt.tight_layout()
+            st.pyplot(fig_pie)
+
+        with detail_col:
+            # Distractor effectiveness
+            st.markdown("#### Distractor Effectiveness")
+            dist_labels = [l for i, l in enumerate(opt_labels) if i != correct_idx]
+            dist_pcts = [p for i, p in enumerate(pct_vals) if i != correct_idx]
+
+            for dl, dp in sorted(zip(dist_labels, dist_pcts), key=lambda x: -x[1]):
+                if dp >= 15:
+                    quality, q_color = "Effective", "#22c55e"
+                elif dp >= 5:
+                    quality, q_color = "Marginal", "#f59e0b"
+                else:
+                    quality, q_color = "Weak", "#ef4444"
+                st.markdown(f"""
+                <div style="background-color: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 0.75rem; margin-bottom: 0.5rem;">
+                    <div class="feature-row"><span class="feature-name">Option {dl}</span><span class="feature-val">{dp:.1f}%</span></div>
+                    <div style="color: {q_color}; font-size: 0.8rem; margin-top: 0.25rem;">● {quality} distractor</div>
+                </div>
+                """, unsafe_allow_html=True)
+            st.markdown("*Good distractors attract ≥15% of students.*")
+
+
 elif page == "Pre-Exam Analysis":
     # --- Pre-Exam Analysis (Text-Only Features) ---
     st.title("Pre-Exam Difficulty Analysis")
@@ -561,6 +694,7 @@ elif page == "Pre-Exam Analysis":
                 <div class="feature-row"><span class="feature-name">Accuracy (Train)</span><span class="feature-val">83.34%</span></div>
             </div>
             """, unsafe_allow_html=True)
+
 
 elif page == "About the Model":
     # --- About Page Logic ---
